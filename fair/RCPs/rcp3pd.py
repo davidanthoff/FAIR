@@ -12,11 +12,15 @@ emissions_filename = os.path.join(
 forcing_filename = os.path.join(
     os.path.dirname(__file__), 'RCP3PD_MIDYEAR_RADFORCING.csv')
 aviNOx_filename = os.path.join(
+    os.path.dirname(__file__), 'aviNOx.csv')
+aviNOxfrac_filename = os.path.join(
     os.path.dirname(__file__), 'aviNOx_fraction.csv')
 fossilCH4_filename = os.path.join(
     os.path.dirname(__file__), 'fossilCH4_fraction.csv')
 
-aviNOx_frac = np.loadtxt(aviNOx_filename, skiprows=5, usecols=(1,),
+aviNOx = np.loadtxt(aviNOx_filename, skiprows=5, usecols=(1,),
+    delimiter=',')
+aviNOx_frac = np.loadtxt(aviNOxfrac_filename, skiprows=5, usecols=(1,),
     delimiter=',')
 fossilCH4_frac = np.loadtxt(fossilCH4_filename, skiprows=5, usecols=(1,),
     delimiter=',')

@@ -2,6 +2,7 @@ from __future__ import division
 
 import inspect
 import numpy as np
+import warnings
 from scipy.optimize import root
 from .constants import molwt, lifetime, radeff
 from .constants.general import M_ATMOS
@@ -33,7 +34,8 @@ def fair_scm(emissions=False,
              tcr_dbl=70.0,
              F_volcanic=0.0,
              F_solar=0.0,
-             aviNOx_frac=0.,
+             aviNOx_frac=None,
+             aviNOx=0.,
              fossilCH4_frac=0.,
              natural=np.array([202., 10.]),
              useStevens=False,
@@ -42,6 +44,8 @@ def fair_scm(emissions=False,
              oxCH4_frac=0.61,
              lifetimes=False,
              ghg_forcing="Etminan"):
+
+  warnings.simplefilter('always', DeprecationWarning)
 
   # Conversion between ppm CO2 and GtC emissions
   ppm_gtc   = M_ATMOS/1e18*molwt.C/molwt.AIR
@@ -96,6 +100,18 @@ def fair_scm(emissions=False,
       from .forcing.ghg import myhre as ghg
     else:
       raise ValueError("ghg_forcing should be 'etminan' (default) or 'myhre'")
+    # check aviNOx input. aviNOx provided in Mt NO2 rather than Mt N.
+    if aviNOx_frac is not None:
+      warnings.warn('aviNOx_frac is deprecated and will raise an error in '+
+        'future. Please use aviNOx.', DeprecationWarning)
+      if aviNOx is not None:
+        warnings.warn('Overriding aviNOx with specified aviNOx_frac')
+      aviNOx = aviNOx_frac*emissions[:,8] * molwt.NO2/molwt.N
+    if np.any(aviNOx < 0):
+      raise ValueError('Negative value in aviation NOx emissions')
+    if np.any(aviNOx*molwt.N/molwt.NO2 > emissions[:,8]):
+      raise ValueError('Aviation NOx emissions should be no more than the '+
+        'total anthropogenic NOx emissions.')
       
   else:
     ngas = 1
@@ -181,7 +197,7 @@ def fair_scm(emissions=False,
     F[0,6] = h2o_st.linear(F[0,1])
 
     # Forcing from contrails. As with tr O3, no feedback dependence
-    F[:,7] = contrails.from_aviNOx(emissions, aviNOx_frac)
+    F[:,7] = contrails.from_aviNOx(aviNOx)
 
     # Forcing from aerosols - again no feedback dependence
     if useStevens:
