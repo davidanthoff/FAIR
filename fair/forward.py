@@ -14,10 +14,59 @@ def temp_box_update(T_j, d, q, F, efficacy):
     return T_j*np.exp(-1.0/d) + q*(1-np.exp((-1.0)/d))*np.sum(F*efficacy)
 
 
+def temp_box_update(T_j, d, q, F, efficacy):
+    return T_j*np.exp(-1.0/d) + q*(1-np.exp((-1.0)/d))*np.sum(F*efficacy)
+
+
 def iirf_interp_funct(alp_b,a,tau,targ_iirf):
     # ref eq. (7) of Millar et al ACP (2017)
     iirf_arr = alp_b*(np.sum(a*tau*(1.0 - np.exp(-100.0/(tau*alp_b)))))
     return iirf_arr     -  targ_iirf
+
+
+def forcing_driven(
+    F=0.0,
+    q=np.array([0.33,0.41]),
+    tcrecs=np.array([1.6,2.75]),
+    d=np.array([239.0,4.1]),
+    F2x=3.71,
+    tcr_dbl=69.661,
+    restart_in=False
+    ):
+
+    if type(F) is not np.ndarray or F.ndim != 1:
+      raise ValueError("In forcing_drive mode, other_rf should be a 1D array")
+    nt = F.shape[0]
+    thermal_boxes_shape = (nt, d.shape[0])
+    T_j = np.zeros(thermal_boxes_shape)
+    T = np.zeros(nt)
+
+    # TODO: put me in a function
+    # If TCR and ECS are supplied, calculate the q1 and q2 model coefficients 
+    # (overwriting any other q array that might have been supplied)
+    # ref eq. (4) and (5) of Millar et al ACP (2017)
+    k = 1.0 - (d/tcr_dbl)*(1.0 - np.exp(-tcr_dbl/d))  # Allow TCR to vary
+    if type(tcrecs) is np.ndarray:
+      # if ECS and TCR are not time-varying, expand them to 2D array anyway
+      if tcrecs.ndim==1:
+        if len(tcrecs)!=2:
+          raise ValueError("Constant TCR and ECS should be a 2-element array")
+        tcrecs = np.ones((nt, 2)) * tcrecs
+      elif tcrecs.ndim==2:
+        if tcrecs.shape!=(nt, 2):
+          raise ValueError("Transient TCR and ECS should be a nt x 2 array")
+      q  = (1.0 / F2x) * (1.0/(k[0]-k[1])) * np.array([
+        tcrecs[:,0]-tcrecs[:,1]*k[1],tcrecs[:,1]*k[0]-tcrecs[:,0]]).T
+
+    if restart_in:
+      T_j[0]=restart_in[0]
+      T[0]=np.sum(T_j[0,:],axis=-1)
+
+    for t in range(1,nt):
+      T_j[t,:] = temp_box_update(T_j[t-1,:], d, q[t,:], F[t], 1.0)
+      T[t]=np.sum(T_j[t,:],axis=-1)
+
+    return T
 
 
 def forcing_driven(
